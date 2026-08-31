@@ -3,14 +3,21 @@ const prisma = require('../config/prisma');
 const getDashboardStats = async (req, res) => {
   try {
     // 1. Total & Status Counts
-    const [total, pending, inProgress, accepted, waitingParts, completed, cancelled] = await Promise.all([
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const [total, pending, inProgress, accepted, waitingParts, completed, cancelled, overdue] = await Promise.all([
       prisma.repairRequest.count(),
       prisma.repairRequest.count({ where: { status: 'PENDING' } }),
       prisma.repairRequest.count({ where: { status: 'IN_PROGRESS' } }),
       prisma.repairRequest.count({ where: { status: 'ACCEPTED' } }),
       prisma.repairRequest.count({ where: { status: 'WAITING_PARTS' } }),
       prisma.repairRequest.count({ where: { status: 'COMPLETED' } }),
-      prisma.repairRequest.count({ where: { status: 'CANCELLED' } })
+      prisma.repairRequest.count({ where: { status: 'CANCELLED' } }),
+      prisma.repairRequest.count({
+        where: {
+          status: { in: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'WAITING_PARTS'] },
+          createdAt: { lt: threeDaysAgo }
+        }
+      })
     ]);
 
     // 2. Count repairs by category
@@ -85,6 +92,7 @@ const getDashboardStats = async (req, res) => {
         waitingParts,
         completed,
         cancelled,
+        overdue,
         inWorkTotal: pending + accepted + inProgress + waitingParts
       },
       topCategory: categoryStats.length > 0 ? categoryStats[0] : null,
