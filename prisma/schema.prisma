@@ -1,0 +1,91 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int             @id @default(autoincrement())
+  name             String
+  email            String          @unique
+  password         String
+  phone            String?
+  role             String          @default("USER") // USER, STAFF, ADMIN
+  status           String          @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  repairRequests   RepairRequest[] @relation("UserRequests")
+  assignedRepairs  RepairRequest[] @relation("AssignedRepairs")
+  repairLogs       RepairLog[]
+
+  @@map("users")
+}
+
+model RepairCategory {
+  id             Int             @id @default(autoincrement())
+  name           String          @unique
+  description    String?         @db.Text
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  repairRequests RepairRequest[]
+
+  @@map("repair_categories")
+}
+
+model Location {
+  id             Int             @id @default(autoincrement())
+  buildingName   String          @unique @map("building_name")
+  description    String?         @db.Text
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  repairRequests RepairRequest[]
+
+  @@map("locations")
+}
+
+model RepairRequest {
+  id           Int            @id @default(autoincrement())
+  userId       Int            @map("user_id")
+  categoryId   Int            @map("category_id")
+  locationId   Int            @map("location_id")
+  room         String
+  description  String         @db.Text
+  image        String?
+  status       String         @default("PENDING") // PENDING, ACCEPTED, IN_PROGRESS, WAITING_PARTS, COMPLETED, CANCELLED
+  assignedTo   Int?           @map("assigned_to")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  completedAt  DateTime?      @map("completed_at")
+
+  user         User           @relation("UserRequests", fields: [userId], references: [id], onDelete: Cascade)
+  category     RepairCategory @relation(fields: [categoryId], references: [id])
+  location     Location       @relation(fields: [locationId], references: [id])
+  technician   User?          @relation("AssignedRepairs", fields: [assignedTo], references: [id], onDelete: SetNull)
+  logs         RepairLog[]
+
+  @@map("repair_requests")
+}
+
+model RepairLog {
+  id              Int           @id @default(autoincrement())
+  repairRequestId Int           @map("repair_request_id")
+  userId          Int           @map("user_id")
+  oldStatus       String?       @map("old_status")
+  newStatus       String        @map("new_status")
+  note            String?       @db.Text
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  repairRequest   RepairRequest @relation(fields: [repairRequestId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id])
+
+  @@map("repair_logs")
+}
