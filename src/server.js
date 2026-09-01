@@ -20,7 +20,11 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static uploads
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Routes
+// Serve compiled static frontend (Target A: Railway Single-Container Production)
+const publicPath = path.join(__dirname, '../public');
+app.use(express.static(publicPath));
+
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/locations', locationRoutes);
@@ -31,6 +35,18 @@ app.use('/api/stats', statsRoutes);
 // Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'UniRepair API Server is running smoothly' });
+});
+
+// SPA Fallback for Single-Container Production
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+    return next();
+  }
+  const indexPath = path.join(publicPath, 'index.html');
+  if (require('fs').existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  next();
 });
 
 // Error handling middleware
