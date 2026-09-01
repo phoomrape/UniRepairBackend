@@ -37,6 +37,30 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'UniRepair API Server is running smoothly' });
 });
 
+// Database Health Check (Debug DB Connection)
+app.get('/api/health/db', async (req, res) => {
+  try {
+    const prisma = require('./config/prisma');
+    const userCount = await prisma.user.count();
+    const locationCount = await prisma.location.count();
+    const categoryCount = await prisma.repairCategory.count();
+    res.json({
+      success: true,
+      database: 'connected',
+      counts: { users: userCount, locations: locationCount, categories: categoryCount }
+    });
+  } catch (error) {
+    console.error('Database connection error:', error);
+    res.status(500).json({
+      success: false,
+      database: 'error',
+      message: error.message,
+      code: error.code,
+      meta: error.meta
+    });
+  }
+});
+
 // SPA Fallback for Single-Container Production
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
